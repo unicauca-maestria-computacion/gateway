@@ -74,8 +74,6 @@ jobs:
             --memory "1g" \
             --memory-swap "2g" \
             -e MYSQL_ROOT_PASSWORD="$BD_PASSWORD" \
-            -e MYSQL_USER="$BD_USER" \
-            -e MYSQL_PASSWORD="$BD_PASSWORD" \
             -e MYSQL_DATABASE="maestria-computacion" \
             -v mysql_maestria_data:/var/lib/mysql \
             mariadb:10.6 \
