@@ -116,7 +116,11 @@ jobs:
             echo "--- Running: $label ---"
             local tmp
             tmp=$(mktemp /tmp/sql_XXXXXX.sql)
-            sed -E 's/check\([^)]+\)//gI; s/[[:space:]]VISIBLE\b//gI' "$file" > "$tmp"
+            {
+              echo 'SET FOREIGN_KEY_CHECKS=0; SET UNIQUE_CHECKS=0;'
+              sed -E 's/check\([^)]+\)//gI; s/[[:space:]]VISIBLE\b//gI' "$file"
+              echo 'SET FOREIGN_KEY_CHECKS=1; SET UNIQUE_CHECKS=1;'
+            } > "$tmp"
             docker cp "$tmp" mysql-db:/tmp/current_script.sql
             rm -f "$tmp"
             docker exec mysql-db mysql -uroot --max_allowed_packet=128M --skip-reconnect maestria-computacion -e "source /tmp/current_script.sql" || true
