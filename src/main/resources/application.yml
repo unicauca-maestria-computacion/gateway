@@ -1,0 +1,169 @@
+spring:
+  application:
+    name: gateway
+  threads:
+    virtual:
+      enabled: true
+
+  cloud:
+    gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowed-origins:
+              - "https://contrerasdaniel.com"
+              - "http://contrerasdaniel.com"
+              - "https://www.contrerasdaniel.com"
+              - "http://www.contrerasdaniel.com"
+              - "https://api.contrerasdaniel.com"
+              - "http://api.contrerasdaniel.com"
+              - "https://practica.con-lineamientos.contrerasdaniel.com"
+              - "https://practica.sin-lineamientos.contrerasdaniel.com"
+              - "http://localhost:4200"
+              - "http://localhost:82"
+              - "http://localhost:81"
+              - "http://localhost:80"
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowed-headers:
+              - "*"
+            allow-credentials: true
+            max-age: 3600
+      default-filters:
+        - RemoveRequestHeader=Origin
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          order: -1
+          predicates:
+            - Path=/auth/**
+          filters:
+            - AddRequestHeader=X-Gateway-Passed,true
+        - id: scanner-management-service
+          uri: lb://scanner-management-service
+          predicates:
+            - Path=/escaner/**
+          filters:
+            - AddRequestHeader=X-Gateway-Passed,true
+            - JwtAuthenticationFilter
+        - id: marketdata-service
+          uri: lb://marketdata-service
+          predicates:
+            - Path=/marketdata/**,/test/**
+          filters:
+            - AddRequestHeader=X-Gateway-Passed,true
+            - name: JwtAuthenticationFilter
+              args:
+                adminOnly: true
+          metadata:
+            response-timeout: 120000
+            connect-timeout: 10000
+        - id: asset-management-service
+          uri: lb://asset-management-service
+          predicates:
+            - Path=/activos/**
+          filters:
+            - AddRequestHeader=X-Gateway-Passed,true
+            - JwtAuthenticationFilter
+        - id: log-service
+          uri: lb://log-service
+          predicates:
+            - Path=/logs/**
+          filters:
+            - AddRequestHeader=X-Gateway-Passed,true
+            - name: JwtAuthenticationFilter
+              args:
+                adminOnly: true
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/notificaciones/**
+          filters:
+            - AddRequestHeader=X-Gateway-Passed,true
+            - JwtAuthenticationFilter
+            - AddResponseHeader=X-Accel-Buffering,no
+            - AddResponseHeader=Cache-Control,no-cache
+          metadata:
+            response-timeout: -1
+            connect-timeout: 10000
+        
+        # Nuevas rutas para los 4 microservicios solicitados
+        - id: informacion-presupuestaria-route
+          uri: lb://INFORMACION-PRESUPUESTARIA
+          predicates:
+            - Path=/informacion-presupuestaria/**
+          filters:
+            - AddRequestHeader=X-Gateway-Passed,true
+            - RemoveRequestHeader=Origin
+            - StripPrefix=1
+        - id: matricula-financiera-route
+          uri: lb://MATRICULA-FINANCIERA
+          predicates:
+            - Path=/matricula-financiera/**
+          filters:
+            - AddRequestHeader=X-Gateway-Passed,true
+            - RemoveRequestHeader=Origin
+            - StripPrefix=1
+        - id: ms-gestion-matricula-route
+          uri: lb://MS-GESTION-MATRICULA
+          predicates:
+            - Path=/matricula-academica/**
+          filters:
+            - AddRequestHeader=X-Gateway-Passed,true
+            - RemoveRequestHeader=Origin
+            - StripPrefix=1
+        - id: ms-gestion-solicitudes-route
+          uri: lb://MS-GESTION-SOLICITUDES
+          predicates:
+            - Path=/ms-gestion-solicitudes/**
+          filters:
+            - AddRequestHeader=X-Gateway-Passed,true
+            - RemoveRequestHeader=Origin
+            - StripPrefix=1
+      discovery:
+        locator:
+          enabled: false
+          lower-case-service-id: true
+
+  profiles:
+    active: dev
+
+jwt:
+  secret: ${JWT_SECRET:5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437}
+
+logging:
+  level:
+    "[org.springframework.cloud.gateway]": DEBUG
+    "[org.springframework.http.server.reactive]": DEBUG
+    "[org.springframework.web.reactive]": DEBUG
+    "[com.netflix.discovery.shared.resolver.aws.ConfigClusterResolver]": WARN
+    "[com.netflix.discovery]": WARN
+
+server:
+  port: 8081
+  netty:
+    idle-timeout: 300s
+
+gateway:
+  rate-limit:
+    habilitado: false
+    limite-peticiones-por-minuto: 120
+    umbral-baneo-automatico: 300
+    duracion-baneo-minutos: 10
+    expiracion-bucket-minutos: 15
+    maximo-ips-en-cache: 50000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,metrics
+  endpoint:
+    health:
+      show-details: always
