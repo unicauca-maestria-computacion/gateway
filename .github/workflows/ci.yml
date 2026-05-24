@@ -51,27 +51,25 @@ jobs:
         run: |
           docker network create --driver bridge --opt com.docker.network.driver.mtu=1400 maestria-network || echo "Network already exists"
 
-      - name: Ensure MySQL Database Container is Running
+      - name: Recreate MySQL Database Container
         run: |
-          if [ -z "$(docker ps -a -q -f name=mysql-db)" ]; then
-            echo "Creating and starting mysql-db container..."
-            docker run -d \
-              --name "mysql-db" \
-              --network "maestria-network" \
-              -p 3307:3306 \
-              --restart "always" \
-              -e MYSQL_ROOT_PASSWORD="$BD_PASSWORD" \
-              -e MYSQL_USER="$BD_USER" \
-              -e MYSQL_PASSWORD="$BD_PASSWORD" \
-              -e MYSQL_DATABASE="maestria-computacion" \
-              -v mysql_maestria_data:/var/lib/mysql \
-              mariadb:10.6 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-          else
-            echo "mysql-db container exists, ensuring it is started..."
-            docker start mysql-db
-          fi
+          echo "Removing old mysql-db container and volume for fresh initialization..."
+          docker rm -f mysql-db || true
+          docker volume rm mysql_maestria_data || true
+          echo "Creating fresh mysql-db container..."
+          docker run -d \
+            --name "mysql-db" \
+            --network "maestria-network" \
+            -p 3307:3306 \
+            --restart "always" \
+            -e MYSQL_ROOT_PASSWORD="$BD_PASSWORD" \
+            -e MYSQL_USER="$BD_USER" \
+            -e MYSQL_PASSWORD="$BD_PASSWORD" \
+            -e MYSQL_DATABASE="maestria-computacion" \
+            -v mysql_maestria_data:/var/lib/mysql \
+            mariadb:10.6 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
           echo "Waiting for MySQL to be ready..."
-          until docker exec mysql-db mysql -uroot -p"$BD_PASSWORD" -e "SELECT 1" 2>/dev/null; do
+          until docker exec mysql-db mysqladmin ping --silent 2>/dev/null; do
             echo "MySQL not ready yet, retrying in 5s..."
             sleep 5
           done
