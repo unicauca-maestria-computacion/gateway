@@ -71,8 +71,8 @@ jobs:
             --network "maestria-network" \
             -p 3307:3306 \
             --restart "always" \
-            --memory "600m" \
-            --memory-swap "600m" \
+            --memory "1g" \
+            --memory-swap "2g" \
             -e MYSQL_ROOT_PASSWORD="$BD_PASSWORD" \
             -e MYSQL_USER="$BD_USER" \
             -e MYSQL_PASSWORD="$BD_PASSWORD" \
