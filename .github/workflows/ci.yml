@@ -105,7 +105,7 @@ jobs:
           echo "Waiting for main MariaDB server to accept connections..."
           READY=0
           for attempt in $(seq 1 12); do
-            if docker exec mysql-db mysqladmin ping -uroot --silent 2>/dev/null; then
+            if docker exec -e MYSQL_PWD="$BD_PASSWORD" mysql-db mysqladmin ping -uroot --silent 2>/dev/null; then
               READY=$((READY+1))
               echo "Ping $READY/2 OK (attempt $attempt)"
               if [ "$READY" -ge 2 ]; then break; fi
@@ -137,9 +137,9 @@ jobs:
             } > "$tmp"
             docker cp "$tmp" mysql-db:/tmp/current_script.sql
             rm -f "$tmp"
-            docker exec mysql-db sh -c "mysql -uroot --max_allowed_packet=128M maestria-computacion < /tmp/current_script.sql" || true
+            docker exec -e MYSQL_PWD="$BD_PASSWORD" mysql-db sh -c "mysql -uroot --max_allowed_packet=128M maestria-computacion < /tmp/current_script.sql" || true
             docker exec mysql-db rm -f /tmp/current_script.sql || true
-            if ! docker exec mysql-db mysqladmin ping -uroot --silent 2>/dev/null; then
+            if ! docker exec -e MYSQL_PWD="$BD_PASSWORD" mysql-db mysqladmin ping -uroot --silent 2>/dev/null; then
               echo "FATAL: MySQL server is down after running $label — capturing logs:"
               docker exec mysql-db cat /tmp/mariadb-error.log 2>&1 || true
               docker logs mysql-db --tail 80 2>&1 || true
@@ -150,7 +150,7 @@ jobs:
           }
 
           echo "Dropping and recreating database..."
-          docker exec mysql-db mysql -uroot -e "
+          docker exec -e MYSQL_PWD="$BD_PASSWORD" mysql-db mysql -uroot -e "
             DROP DATABASE IF EXISTS \`maestria-computacion\`;
             CREATE DATABASE \`maestria-computacion\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
             CREATE USER IF NOT EXISTS '$BD_USER'@'%' IDENTIFIED BY '$BD_PASSWORD';
