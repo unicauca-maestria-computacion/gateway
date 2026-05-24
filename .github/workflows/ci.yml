@@ -81,6 +81,7 @@ jobs:
           docker exec mysql-db mysql -uroot -e "
             DROP DATABASE IF EXISTS \`maestria-computacion\`;
             CREATE DATABASE \`maestria-computacion\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+            CREATE USER IF NOT EXISTS '$BD_USER'@'%' IDENTIFIED BY '$BD_PASSWORD';
             GRANT ALL PRIVILEGES ON \`maestria-computacion\`.* TO '$BD_USER'@'%';
             FLUSH PRIVILEGES;
           "
