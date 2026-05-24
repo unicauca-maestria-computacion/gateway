@@ -112,8 +112,13 @@ jobs:
             local label="$1"
             local file="$2"
             echo "--- Running: $label ---"
-            sed -E 's/check\([^)]+\)//gI' "$file" \
-              | docker exec -i mysql-db mysql -uroot --max_allowed_packet=64M maestria-computacion
+            local tmp
+            tmp=$(mktemp /tmp/sql_XXXXXX.sql)
+            sed -E 's/check\([^)]+\)//gI' "$file" > "$tmp"
+            docker cp "$tmp" mysql-db:/tmp/current_script.sql
+            rm -f "$tmp"
+            docker exec mysql-db bash -c "mysql -uroot --max_allowed_packet=64M maestria-computacion < /tmp/current_script.sql"
+            docker exec mysql-db rm -f /tmp/current_script.sql
             echo "--- Done: $label ---"
           }
 
