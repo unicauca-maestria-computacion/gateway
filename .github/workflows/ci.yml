@@ -86,25 +86,41 @@ jobs:
               --net_read_timeout=600 \
               --log-error=/tmp/mariadb-error.log \
               --skip-name-resolve
-          echo "Waiting for MySQL to be fully ready (two successive pings)..."
+          echo "Waiting for MariaDB initialization to complete (init process done)..."
+          INIT_DONE=0
+          for attempt in $(seq 1 36); do
+            if docker logs mysql-db 2>&1 | grep -q "MariaDB init process done"; then
+              echo "Init complete (attempt $attempt). Proceeding to wait for main server..."
+              INIT_DONE=1
+              break
+            fi
+            echo "Init not done yet (attempt $attempt/36), retrying in 5s..."
+            sleep 5
+          done
+          if [ "$INIT_DONE" -eq 0 ]; then
+            echo "ERROR: MariaDB init process did not complete in time."
+            docker logs mysql-db
+            exit 1
+          fi
+          echo "Waiting for main MariaDB server to accept connections..."
           READY=0
-          for attempt in $(seq 1 24); do
+          for attempt in $(seq 1 12); do
             if docker exec mysql-db mysqladmin ping -uroot --silent 2>/dev/null; then
               READY=$((READY+1))
               echo "Ping $READY/2 OK (attempt $attempt)"
               if [ "$READY" -ge 2 ]; then break; fi
             else
               READY=0
-              echo "MySQL not ready yet (attempt $attempt), retrying in 5s..."
+              echo "Main server not ready (attempt $attempt/12), retrying in 5s..."
             fi
             sleep 5
           done
           if [ "$READY" -lt 2 ]; then
-            echo "ERROR: MySQL did not become ready in time."
+            echo "ERROR: Main MariaDB server did not become ready in time."
             docker logs mysql-db
             exit 1
           fi
-          echo "MySQL is fully ready."
+          echo "Main MariaDB server is fully ready."
 
       - name: Initialize Database (Drop, Recreate, Run All Scripts)
         run: |
