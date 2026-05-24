@@ -78,24 +78,24 @@ jobs:
       - name: Initialize Database (Drop, Recreate, Run All Scripts)
         run: |
           echo "Dropping and recreating database..."
-          docker exec mysql-db mysql -uroot -p"$BD_PASSWORD" -e "
+          docker exec mysql-db mysql -uroot -e "
             DROP DATABASE IF EXISTS \`maestria-computacion\`;
             CREATE DATABASE \`maestria-computacion\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
             GRANT ALL PRIVILEGES ON \`maestria-computacion\`.* TO '$BD_USER'@'%';
             FLUSH PRIVILEGES;
           "
           echo "Running Base scripts..."
-          docker exec -i mysql-db mysql -uroot -p"$BD_PASSWORD" maestria-computacion < "Scripts/Base/1. SCRIPT_FINAL_BASE_DATOS_MAESTRIA_V3.sql"
-          docker exec -i mysql-db mysql -uroot -p"$BD_PASSWORD" maestria-computacion < "Scripts/Base/2. SCRIPT_SOLICITUDES V2.sql"
-          docker exec -i mysql-db mysql -uroot -p"$BD_PASSWORD" maestria-computacion < "Scripts/Base/3. Script_documentos_abreviados.sql"
-          docker exec -i mysql-db mysql -uroot -p"$BD_PASSWORD" maestria-computacion < "Scripts/Base/4. Script_Solicitud_Certificado_Voto.sql"
+          docker exec -i mysql-db mysql -uroot maestria-computacion < "Scripts/Base/1. SCRIPT_FINAL_BASE_DATOS_MAESTRIA_V3.sql"
+          docker exec -i mysql-db mysql -uroot maestria-computacion < "Scripts/Base/2. SCRIPT_SOLICITUDES V2.sql"
+          docker exec -i mysql-db mysql -uroot maestria-computacion < "Scripts/Base/3. Script_documentos_abreviados.sql"
+          docker exec -i mysql-db mysql -uroot maestria-computacion < "Scripts/Base/4. Script_Solicitud_Certificado_Voto.sql"
           echo "Running Nuevo scripts..."
-          docker exec -i mysql-db mysql -uroot -p"$BD_PASSWORD" maestria-computacion < "Scripts/Nuevo/1.Script_Matricula_Academica.sql"
-          docker exec -i mysql-db mysql -uroot -p"$BD_PASSWORD" maestria-computacion < "Scripts/Nuevo/2.Script_Matricula_Financiera.sql"
-          docker exec -i mysql-db mysql -uroot -p"$BD_PASSWORD" maestria-computacion < "Scripts/Nuevo/3.Script_Info_Presupuestaria.sql"
-          docker exec -i mysql-db mysql -uroot -p"$BD_PASSWORD" maestria-computacion < "Scripts/Nuevo/4.Script_Solicitud_Revision_Matricula.sql"
+          docker exec -i mysql-db mysql -uroot maestria-computacion < "Scripts/Nuevo/1.Script_Matricula_Academica.sql"
+          docker exec -i mysql-db mysql -uroot maestria-computacion < "Scripts/Nuevo/2.Script_Matricula_Financiera.sql"
+          docker exec -i mysql-db mysql -uroot maestria-computacion < "Scripts/Nuevo/3.Script_Info_Presupuestaria.sql"
+          docker exec -i mysql-db mysql -uroot maestria-computacion < "Scripts/Nuevo/4.Script_Solicitud_Revision_Matricula.sql"
           echo "Running test data scripts..."
-          docker exec -i mysql-db mysql -uroot -p"$BD_PASSWORD" maestria-computacion < "Scripts/Datos_Prueba/INSERT_REAL_STUDENTS_AND_SIMULATE_BECAS.sql"
+          docker exec -i mysql-db mysql -uroot maestria-computacion < "Scripts/Datos_Prueba/INSERT_REAL_STUDENTS_AND_SIMULATE_BECAS.sql"
           echo "Database initialization complete."
 
       - name: Ensure Eureka Discovery Server is Running (directory)
