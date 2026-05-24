@@ -71,8 +71,8 @@ jobs:
             --network "maestria-network" \
             -p 3307:3306 \
             --restart "always" \
-            --memory "384m" \
-            --memory-swap "384m" \
+            --memory "600m" \
+            --memory-swap "600m" \
             -e MYSQL_ROOT_PASSWORD="$BD_PASSWORD" \
             -e MYSQL_USER="$BD_USER" \
             -e MYSQL_PASSWORD="$BD_PASSWORD" \
@@ -149,6 +149,8 @@ jobs:
         run: |
           echo "=== HOST MEMORY ==="
           free -h || true
+          echo "=== DOCKER PS (all containers) ==="
+          docker ps -a || true
           echo "=== DOCKER STATS ==="
           docker stats --no-stream || true
           echo "=== MYSQL-DB CONTAINER LOGS (last 60 lines) ==="
