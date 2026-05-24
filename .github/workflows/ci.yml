@@ -79,12 +79,12 @@ jobs:
             mariadb:10.6 \
               --character-set-server=utf8mb4 \
               --collation-server=utf8mb4_unicode_ci \
-              --innodb_buffer_pool_size=256M \
-              --innodb_log_buffer_size=32M \
-              --innodb_lock_wait_timeout=300 \
+              --innodb_buffer_pool_size=64M \
+              --innodb_log_buffer_size=4M \
               --max-allowed-packet=128M \
               --net_write_timeout=600 \
               --net_read_timeout=600 \
+              --log-error=/tmp/mariadb-error.log \
               --skip-name-resolve
           echo "Waiting for MySQL to be fully ready (two successive pings)..."
           READY=0
@@ -121,10 +121,11 @@ jobs:
             } > "$tmp"
             docker cp "$tmp" mysql-db:/tmp/current_script.sql
             rm -f "$tmp"
-            docker exec mysql-db mysql -uroot --max_allowed_packet=128M --skip-reconnect maestria-computacion -e "source /tmp/current_script.sql" || true
+            docker exec mysql-db sh -c "mysql -uroot --max_allowed_packet=128M maestria-computacion < /tmp/current_script.sql" || true
             docker exec mysql-db rm -f /tmp/current_script.sql || true
             if ! docker exec mysql-db mysqladmin ping -uroot --silent 2>/dev/null; then
               echo "FATAL: MySQL server is down after running $label — capturing logs:"
+              docker exec mysql-db cat /tmp/mariadb-error.log 2>&1 || true
               docker logs mysql-db --tail 80 2>&1 || true
               docker inspect mysql-db --format 'OOMKilled={{.State.OOMKilled}} ExitCode={{.State.ExitCode}} Error={{.State.Error}}' 2>&1 || true
               exit 1
