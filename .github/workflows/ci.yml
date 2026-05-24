@@ -84,7 +84,6 @@ jobs:
               --innodb_buffer_pool_size=64M \
               --innodb_log_buffer_size=4M \
               --max_connections=20 \
-              --performance_schema=OFF \
               --skip-name-resolve
           echo "Waiting for MySQL to be fully ready (two successive pings)..."
           READY=0
@@ -114,10 +113,10 @@ jobs:
             echo "--- Running: $label ---"
             local tmp
             tmp=$(mktemp /tmp/sql_XXXXXX.sql)
-            sed -E 's/check\([^)]+\)//gI' "$file" > "$tmp"
+            sed -E 's/check\([^)]+\)//gI; s/[[:space:]]VISIBLE\b//gI' "$file" > "$tmp"
             docker cp "$tmp" mysql-db:/tmp/current_script.sql
             rm -f "$tmp"
-            docker exec mysql-db bash -c "mysql -uroot --max_allowed_packet=64M maestria-computacion < /tmp/current_script.sql"
+            docker exec mysql-db mysql -uroot --max_allowed_packet=64M maestria-computacion -e "source /tmp/current_script.sql"
             docker exec mysql-db rm -f /tmp/current_script.sql
             echo "--- Done: $label ---"
           }
@@ -153,8 +152,10 @@ jobs:
           docker ps -a || true
           echo "=== DOCKER STATS ==="
           docker stats --no-stream || true
-          echo "=== MYSQL-DB CONTAINER LOGS (last 60 lines) ==="
-          docker logs mysql-db --tail 60 2>&1 || true
+          echo "=== MYSQL-DB CONTAINER STATE ==="
+          docker inspect mysql-db --format 'OOMKilled={{.State.OOMKilled}} ExitCode={{.State.ExitCode}} Error={{.State.Error}}' 2>&1 || true
+          echo "=== MYSQL-DB CONTAINER LOGS (last 100 lines) ==="
+          docker logs mysql-db --tail 100 2>&1 || true
           echo "=== KERNEL OOM MESSAGES ==="
           dmesg | grep -iE "oom|killed|out of memory" | tail -30 || true
           echo "=== DISK SPACE ==="
