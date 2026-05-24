@@ -144,6 +144,20 @@ jobs:
           run_sql "Datos_Prueba - Students & Becas"  "Scripts/Datos_Prueba/INSERT_REAL_STUDENTS_AND_SIMULATE_BECAS.sql"
           echo "Database initialization complete."
 
+      - name: Post-Failure Diagnostics
+        if: always()
+        run: |
+          echo "=== HOST MEMORY ==="
+          free -h || true
+          echo "=== DOCKER STATS ==="
+          docker stats --no-stream || true
+          echo "=== MYSQL-DB CONTAINER LOGS (last 60 lines) ==="
+          docker logs mysql-db --tail 60 2>&1 || true
+          echo "=== KERNEL OOM MESSAGES ==="
+          dmesg | grep -iE "oom|killed|out of memory" | tail -30 || true
+          echo "=== DISK SPACE ==="
+          df -h || true
+
       - name: Ensure Eureka Discovery Server is Running (directory)
         run: |
           if [ -z "$(docker ps -a -q -f name=directory-service)" ]; then
