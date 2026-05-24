@@ -62,12 +62,14 @@ jobs:
             --network "maestria-network" \
             -p 3307:3306 \
             --restart "always" \
+            --memory "512m" \
+            --memory-swap "512m" \
             -e MYSQL_ROOT_PASSWORD="$BD_PASSWORD" \
             -e MYSQL_USER="$BD_USER" \
             -e MYSQL_PASSWORD="$BD_PASSWORD" \
             -e MYSQL_DATABASE="maestria-computacion" \
             -v mysql_maestria_data:/var/lib/mysql \
-            mariadb:10.6 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+            mariadb:10.6 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --innodb_buffer_pool_size=64M
           echo "Waiting for MySQL to be ready..."
           until docker exec mysql-db mysqladmin ping --silent 2>/dev/null; do
             echo "MySQL not ready yet, retrying in 5s..."
