@@ -171,6 +171,20 @@ jobs:
           run_sql "Datos_Prueba - Students & Becas"  "Scripts/Datos_Prueba/INSERT_REAL_STUDENTS_AND_SIMULATE_BECAS.sql"
           echo "Database initialization complete."
 
+      - name: Restart DB-Dependent Services
+        run: |
+          echo "Restarting services that depend on the database so they reconnect..."
+          for svc in ms-gestion-solicitudes-service ms-gestion-matricula-service matricula-financiera-service informacion-presupuestaria-service; do
+            if docker ps -q -f name="$svc" | grep -q .; then
+              echo "Restarting $svc..."
+              docker restart "$svc" || true
+            else
+              echo "$svc is not running, skipping..."
+            fi
+          done
+          echo "Waiting 15s for services to reconnect to DB..."
+          sleep 15
+
       - name: Post-Failure Diagnostics
         if: always()
         run: |
