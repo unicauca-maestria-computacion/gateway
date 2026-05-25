@@ -56,7 +56,10 @@ jobs:
           echo "--- Pruning stopped containers to recover host RAM ---"
           docker container prune -f || true
           echo "--- Stopping non-essential practica-u services temporarily ---"
-          docker stop directory-service 2>/dev/null || true
+          for svc in directory-service ms-gestion-solicitudes-service ms-gestion-matricula-service matricula-financiera-service informacion-presupuestaria-service gateway-service; do
+            echo "Stopping $svc..."
+            docker stop "$svc" 2>/dev/null || true
+          done
           echo "--- Host memory after cleanup ---"
           free -h || true
 
@@ -71,8 +74,8 @@ jobs:
             --network "maestria-network" \
             -p 3307:3306 \
             --restart "always" \
-            --memory "1g" \
-            --memory-swap "2g" \
+            --memory "512m" \
+            --memory-swap "1g" \
             -e MYSQL_ROOT_PASSWORD="$BD_PASSWORD" \
             -e MYSQL_DATABASE="maestria-computacion" \
             -v mysql_maestria_data:/var/lib/mysql \
@@ -171,15 +174,36 @@ jobs:
           run_sql "Datos_Prueba - Students & Becas"  "Scripts/Datos_Prueba/INSERT_REAL_STUDENTS_AND_SIMULATE_BECAS.sql"
           echo "Database initialization complete."
 
+      - name: Ensure Eureka Discovery Server is Running (directory)
+        run: |
+          if [ -z "$(docker ps -a -q -f name=directory-service)" ]; then
+            echo "Creating and starting directory-service container..."
+            docker run -d \
+              --name "directory-service" \
+              --network "maestria-network" \
+              --network-alias "directory" \
+              -p 8765:8761 \
+              --restart "always" \
+              --memory "256m" \
+              --memory-swap "256m" \
+              --label project="practica-u" \
+              --label service="directory" \
+              -e JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xms64m -Xmx192m" \
+              $DOCKER_USERNAME/practica-profesional-directory:latest
+          else
+            echo "directory-service container exists, ensuring it is started..."
+            docker start directory-service
+          fi
+
       - name: Restart DB-Dependent Services
         run: |
-          echo "Restarting services that depend on the database so they reconnect..."
+          echo "Starting/Restarting services that depend on the database..."
           for svc in ms-gestion-solicitudes-service ms-gestion-matricula-service matricula-financiera-service informacion-presupuestaria-service; do
-            if docker ps -q -f name="$svc" | grep -q .; then
-              echo "Restarting $svc..."
-              docker restart "$svc" || true
+            if docker ps -a -q -f name="$svc" | grep -q .; then
+              echo "Starting $svc..."
+              docker start "$svc" || true
             else
-              echo "$svc is not running, skipping..."
+              echo "$svc does not exist, skipping..."
             fi
           done
           echo "Waiting 15s for services to reconnect to DB..."
@@ -202,27 +226,6 @@ jobs:
           dmesg | grep -iE "oom|killed|out of memory" | tail -30 || true
           echo "=== DISK SPACE ==="
           df -h || true
-
-      - name: Ensure Eureka Discovery Server is Running (directory)
-        run: |
-          if [ -z "$(docker ps -a -q -f name=directory-service)" ]; then
-            echo "Creating and starting directory-service container..."
-            docker run -d \
-              --name "directory-service" \
-              --network "maestria-network" \
-              --network-alias "directory" \
-              -p 8765:8761 \
-              --restart "always" \
-              --memory "256m" \
-              --memory-swap "256m" \
-              --label project="practica-u" \
-              --label service="directory" \
-              -e JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xms64m -Xmx192m" \
-              $DOCKER_USERNAME/practica-profesional-directory:latest
-          else
-            echo "directory-service container exists, ensuring it is started..."
-            docker start directory-service
-          fi
 
       - name: Infrastructure Diagnosis & Cleanup
         run: |
