@@ -58,8 +58,9 @@ jobs:
           echo "--- Stopping non-essential practica-u services temporarily ---"
           for svc in directory-service ms-gestion-solicitudes-service ms-gestion-matricula-service matricula-financiera-service informacion-presupuestaria-service gateway-service; do
             echo "Stopping $svc..."
-            docker stop "$svc" 2>/dev/null || true
+            docker stop -t 2 "$svc" >/dev/null 2>&1 &
           done
+          wait
           echo "--- Host memory after cleanup ---"
           free -h || true
 
