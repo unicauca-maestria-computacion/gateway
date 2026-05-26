@@ -91,41 +91,37 @@ jobs:
               --innodb_buffer_pool_instances=1 \
               --max_connections=64 \
               --skip-mysqlx
-          echo "Waiting for MySQL initialization to complete (init process done)..."
-          INIT_DONE=0
-          for attempt in $(seq 1 60); do
-            if docker logs mysql-db 2>&1 | grep -q "MySQL init process done"; then
-              echo "Init complete (attempt $attempt). Proceeding to wait for main server..."
-              INIT_DONE=1
-              break
-            fi
-            echo "Init not done yet (attempt $attempt/60), retrying in 5s..."
-            sleep 5
-          done
-          if [ "$INIT_DONE" -eq 0 ]; then
-            echo "ERROR: MySQL init process did not complete in time."
-            docker logs mysql-db
-            exit 1
-          fi
-          echo "Waiting for main MySQL server to accept connections..."
+          echo "Waiting for MySQL server to become fully ready and accept connections..."
           READY=0
-          for attempt in $(seq 1 24); do
+          for attempt in $(seq 1 72); do
             if docker exec -e MYSQL_PWD="$BD_PASSWORD" mysql-db mysqladmin ping -uroot --silent 2>/dev/null; then
-              READY=$((READY+1))
-              echo "Ping $READY/2 OK (attempt $attempt)"
-              if [ "$READY" -ge 2 ]; then break; fi
+              if docker logs mysql-db 2>&1 | grep -q "MySQL init process done"; then
+                READY=$((READY+1))
+                echo "MySQL ping OK, init process verified (attempt $attempt/72, consecutive OK: $READY)"
+                if [ "$READY" -ge 2 ]; then break; fi
+              else
+                READY=$((READY+1))
+                echo "MySQL ping OK, waiting to verify stability (attempt $attempt/72, consecutive OK: $READY)"
+                if [ "$READY" -ge 6 ]; then
+                  echo "MySQL is stable after 6 consecutive successful pings."
+                  break
+                fi
+              fi
             else
+              if [ "$READY" -gt 0 ]; then
+                echo "MySQL went down (temporary restart during init), resetting readiness counter."
+              fi
               READY=0
-              echo "Main server not ready (attempt $attempt/24), retrying in 5s..."
+              echo "MySQL server not ready yet (attempt $attempt/72), retrying in 5s..."
             fi
             sleep 5
           done
-          if [ "$READY" -lt 2 ]; then
-            echo "ERROR: Main MySQL server did not become ready in time."
+          if [ "$READY" -lt 2 ] && [ "$READY" -lt 6 ]; then
+            echo "ERROR: MySQL server did not become ready in time."
             docker logs mysql-db
             exit 1
           fi
-          echo "Main MySQL server is fully ready."
+          echo "MySQL server is fully ready and stable."
 
       - name: Initialize Database (Drop, Recreate, Run All Scripts)
         run: |
