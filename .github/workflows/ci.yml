@@ -79,20 +79,17 @@ jobs:
             -e MYSQL_ROOT_PASSWORD="$BD_PASSWORD" \
             -e MYSQL_DATABASE="maestria-computacion" \
             -v mysql_maestria_data:/var/lib/mysql \
-            mariadb:10.6 \
+            mysql:8.0 \
               --character-set-server=utf8mb4 \
               --collation-server=utf8mb4_unicode_ci \
-              --innodb_buffer_pool_size=64M \
+              --innodb_buffer_pool_size=128M \
               --innodb_log_buffer_size=4M \
               --max-allowed-packet=128M \
-              --net_write_timeout=600 \
-              --net_read_timeout=600 \
-              --log-error=/tmp/mariadb-error.log \
               --skip-name-resolve
-          echo "Waiting for MariaDB initialization to complete (init process done)..."
+          echo "Waiting for MySQL initialization to complete (init process done)..."
           INIT_DONE=0
           for attempt in $(seq 1 36); do
-            if docker logs mysql-db 2>&1 | grep -q "MariaDB init process done"; then
+            if docker logs mysql-db 2>&1 | grep -q -E "MySQL init process done|ready for connections"; then
               echo "Init complete (attempt $attempt). Proceeding to wait for main server..."
               INIT_DONE=1
               break
@@ -101,11 +98,11 @@ jobs:
             sleep 5
           done
           if [ "$INIT_DONE" -eq 0 ]; then
-            echo "ERROR: MariaDB init process did not complete in time."
+            echo "ERROR: MySQL init process did not complete in time."
             docker logs mysql-db
             exit 1
           fi
-          echo "Waiting for main MariaDB server to accept connections..."
+          echo "Waiting for main MySQL server to accept connections..."
           READY=0
           for attempt in $(seq 1 12); do
             if docker exec -e MYSQL_PWD="$BD_PASSWORD" mysql-db mysqladmin ping -uroot --silent 2>/dev/null; then
@@ -119,11 +116,11 @@ jobs:
             sleep 5
           done
           if [ "$READY" -lt 2 ]; then
-            echo "ERROR: Main MariaDB server did not become ready in time."
+            echo "ERROR: Main MySQL server did not become ready in time."
             docker logs mysql-db
             exit 1
           fi
-          echo "Main MariaDB server is fully ready."
+          echo "Main MySQL server is fully ready."
 
       - name: Initialize Database (Drop, Recreate, Run All Scripts)
         run: |
@@ -144,7 +141,7 @@ jobs:
             docker exec mysql-db rm -f /tmp/current_script.sql || true
             if ! docker exec -e MYSQL_PWD="$BD_PASSWORD" mysql-db mysqladmin ping -uroot --silent 2>/dev/null; then
               echo "FATAL: MySQL server is down after running $label — capturing logs:"
-              docker exec mysql-db cat /tmp/mariadb-error.log 2>&1 || true
+              docker logs mysql-db --tail 100 2>&1 || true
               docker logs mysql-db --tail 80 2>&1 || true
               docker inspect mysql-db --format 'OOMKilled={{.State.OOMKilled}} ExitCode={{.State.ExitCode}} Error={{.State.Error}}' 2>&1 || true
               exit 1
