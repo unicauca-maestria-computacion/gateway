@@ -53,8 +53,6 @@ jobs:
 
       - name: Free Host Memory Before DB Init
         run: |
-          echo "--- Pruning stopped containers to recover host RAM ---"
-          docker container prune -f || true
           echo "--- Stopping non-essential practica-u services temporarily ---"
           for svc in directory-service ms-gestion-solicitudes-service ms-gestion-matricula-service matricula-financiera-service informacion-presupuestaria-service gateway-service; do
             echo "Stopping $svc..."
