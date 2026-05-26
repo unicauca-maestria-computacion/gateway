@@ -64,10 +64,9 @@ jobs:
 
       - name: Recreate MySQL Database Container
         run: |
-          echo "Removing old mysql-db container and volume for fresh initialization..."
+          echo "Removing old mysql-db container..."
           docker rm -f mysql-db || true
-          docker volume rm mysql_maestria_data || true
-          echo "Creating fresh mysql-db container..."
+          echo "Creating fresh mysql-db container (reusing volume for fast startup)..."
           docker run -d \
             --name "mysql-db" \
             --network "maestria-network" \
