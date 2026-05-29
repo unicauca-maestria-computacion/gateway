@@ -172,24 +172,22 @@ jobs:
 
       - name: Ensure Eureka Discovery Server is Running (directory)
         run: |
-          if [ -z "$(docker ps -a -q -f name=directory-service)" ]; then
-            echo "Creating and starting directory-service container..."
-            docker run -d \
-              --name "directory-service" \
-              --network "maestria-network" \
-              --network-alias "directory" \
-              -p 8765:8761 \
-              --restart "always" \
-              --memory "256m" \
-              --memory-swap "256m" \
-              --label project="practica-u" \
-              --label service="directory" \
-              -e JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xms64m -Xmx192m" \
-              $DOCKER_USERNAME/practica-profesional-directory:latest
-          else
-            echo "directory-service container exists, ensuring it is started..."
-            docker start directory-service
-          fi
+          echo "Recreating directory-service container to apply latest configurations..."
+          docker rm -f directory-service || true
+          docker run -d \
+            --name "directory-service" \
+            --network "maestria-network" \
+            --network-alias "directory" \
+            -p 8765:8761 \
+            --restart "always" \
+            --memory "384m" \
+            --memory-swap "512m" \
+            --label project="practica-u" \
+            --label service="directory" \
+            -e JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xms64m -Xmx256m" \
+            $DOCKER_USERNAME/practica-profesional-directory:latest
+          echo "Waiting 12s for Eureka Discovery Server to boot up and initialize..."
+          sleep 12
 
       - name: Restart DB-Dependent Services
         run: |
