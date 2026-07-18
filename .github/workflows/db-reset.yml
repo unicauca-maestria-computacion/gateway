@@ -1,0 +1,108 @@
+name: Reset Database (Manual - Destructive)
+
+on:
+  workflow_dispatch:
+    inputs:
+      include_test_data:
+        description: 'Cargar datos de prueba (INSERT_REAL_STUDENTS_AND_SIMULATE_BECAS.sql)?'
+        type: boolean
+        default: true
+        required: true
+
+jobs:
+  reset-db:
+    runs-on: self-hosted
+    env:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      BD_USER: ${{ secrets.BD_USER }}
+      BD_PASSWORD: ${{ secrets.BD_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate MySQL Container is Running
+        run: |
+          if ! docker ps --format '{{.Names}}' | grep -q '^mysql-db$'; then
+            echo "ERROR: mysql-db container is not running. Deploy the gateway first."
+            exit 1
+          fi
+          echo "MySQL container is running."
+
+      - name: Drop and Recreate Database
+        run: |
+          echo "DESTRUCTIVE OPERATION: Dropping and recreating maestria-computacion database..."
+          docker exec -e MYSQL_PWD="$BD_PASSWORD" mysql-db mysql -uroot -e "
+            DROP DATABASE IF EXISTS \`maestria-computacion\`;
+            CREATE DATABASE \`maestria-computacion\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+            CREATE USER IF NOT EXISTS '$BD_USER'@'%' IDENTIFIED BY '$BD_PASSWORD';
+            ALTER USER '$BD_USER'@'%' IDENTIFIED BY '$BD_PASSWORD';
+            GRANT ALL PRIVILEGES ON \`maestria-computacion\`.* TO '$BD_USER'@'%';
+            FLUSH PRIVILEGES;
+          "
+          echo "Database dropped and recreated successfully."
+
+      - name: Run Schema Scripts
+        run: |
+          run_sql() {
+            local label="$1"
+            local file="$2"
+            echo "--- Running: $label ---"
+            local tmp
+            tmp=$(mktemp /tmp/sql_XXXXXX.sql)
+            {
+              echo 'SET FOREIGN_KEY_CHECKS=0; SET UNIQUE_CHECKS=0;'
+              sed -E 's/check\([^)]+\)//gI; s/[[:space:]]VISIBLE\b//gI' "$file"
+              echo 'SET FOREIGN_KEY_CHECKS=1; SET UNIQUE_CHECKS=1;'
+            } > "$tmp"
+            docker cp "$tmp" mysql-db:/tmp/current_script.sql
+            rm -f "$tmp"
+            docker exec -e MYSQL_PWD="$BD_PASSWORD" mysql-db sh -c "mysql -uroot --max_allowed_packet=128M maestria-computacion < /tmp/current_script.sql" || true
+            docker exec mysql-db rm -f /tmp/current_script.sql || true
+            if ! docker exec -e MYSQL_PWD="$BD_PASSWORD" mysql-db mysqladmin ping -uroot --silent 2>/dev/null; then
+              echo "FATAL: MySQL server is down after running $label"
+              docker logs mysql-db --tail 100 2>&1 || true
+              exit 1
+            fi
+            echo "--- Done: $label ---"
+          }
+
+          echo "Running Base scripts..."
+          run_sql "Base/1 - Schema principal" "Scripts/Base/1. SCRIPT_FINAL_BASE_DATOS_MAESTRIA_V3.sql"
+          run_sql "Base/2 - Solicitudes"      "Scripts/Base/2. SCRIPT_SOLICITUDES V2.sql"
+          run_sql "Base/3 - Documentos abrev" "Scripts/Base/3. Script_documentos_abreviados.sql"
+          run_sql "Base/4 - Cert Voto"        "Scripts/Base/4. Script_Solicitud_Certificado_Voto.sql"
+          echo "Running Nuevo scripts..."
+          run_sql "Nuevo/1 - Matricula Academica"    "Scripts/Nuevo/1.Script_Matricula_Academica.sql"
+          run_sql "Nuevo/2 - Matricula Financiera"   "Scripts/Nuevo/2.Script_Matricula_Financiera.sql"
+          run_sql "Nuevo/3 - Info Presupuestaria"    "Scripts/Nuevo/3.Script_Info_Presupuestaria.sql"
+          run_sql "Nuevo/4 - Revision Matricula"     "Scripts/Nuevo/4.Script_Solicitud_Revision_Matricula.sql"
+
+      - name: Load Test Data (Optional)
+        if: ${{ inputs.include_test_data }}
+        run: |
+          echo "Loading test data..."
+          run_sql() {
+            local label="$1"
+            local file="$2"
+            echo "--- Running: $label ---"
+            local tmp
+            tmp=$(mktemp /tmp/sql_XXXXXX.sql)
+            sed -E 's/check\([^)]+\)//gI; s/[[:space:]]VISIBLE\b//gI' "$file" > "$tmp"
+            docker cp "$tmp" mysql-db:/tmp/current_script.sql
+            rm -f "$tmp"
+            docker exec -e MYSQL_PWD="$BD_PASSWORD" mysql-db sh -c "mysql -uroot --max_allowed_packet=128M maestria-computacion < /tmp/current_script.sql" || true
+            docker exec mysql-db rm -f /tmp/current_script.sql || true
+            echo "--- Done: $label ---"
+          }
+          run_sql "Datos_Prueba - Students & Becas" "Scripts/Datos_Prueba/INSERT_REAL_STUDENTS_AND_SIMULATE_BECAS.sql"
+
+      - name: Restart Dependent Services
+        run: |
+          echo "Restarting services to pick up fresh database..."
+          for svc in ms-gestion-solicitudes-service ms-gestion-matricula-service matricula-financiera-service informacion-presupuestaria-service; do
+            if docker ps -a -q -f name="$svc" | grep -q .; then
+              echo "Restarting $svc..."
+              docker restart "$svc" || true
+            fi
+          done
+          echo "Database reset complete. Services restarted."
