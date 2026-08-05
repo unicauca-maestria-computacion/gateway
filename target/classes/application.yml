@@ -18,6 +18,8 @@ spring:
               - "http://www.contrerasdaniel.com"
               - "https://api.contrerasdaniel.com"
               - "http://api.contrerasdaniel.com"
+              - "https://practica-con-lineamientos.contrerasdaniel.com"
+              - "https://practica-sin-lineamientos.contrerasdaniel.com"
               - "http://localhost:4200"
               - "http://localhost:82"
               - "http://localhost:81"

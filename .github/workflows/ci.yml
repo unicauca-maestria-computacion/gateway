@@ -192,6 +192,8 @@ jobs:
             --memory-swap "512m" \
             --label project="practica-u" \
             --label service="directory" \
+            -e SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE="10MB" \
+            -e SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE="10MB" \
             -e JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xms64m -Xmx256m" \
             $DOCKER_USERNAME/practica-profesional-directory:latest
           echo "Waiting 12s for Eureka Discovery Server to boot up and initialize..."
@@ -262,6 +264,8 @@ jobs:
             -e EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE="http://directory:8761/eureka/" \
             -e EUREKA_CLIENT_SERVICEURL_DEFAULTZONE="http://directory:8761/eureka/" \
             -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            -e SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE="10MB" \
+            -e SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE="10MB" \
             -e JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xms64m -Xmx256m" \
             $DOCKER_USERNAME/practica-profesional-gateway:latest
 
