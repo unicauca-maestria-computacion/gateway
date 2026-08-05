@@ -26,7 +26,7 @@ public class TamanoRequestFilter implements GlobalFilter {
 
     private static final Logger log = LoggerFactory.getLogger(TamanoRequestFilter.class);
 
-    private static final long TAMANO_MAXIMO_BYTES = 2L * 1024 * 1024; // 2 MB
+    private static final long TAMANO_MAXIMO_BYTES = 10L * 1024 * 1024; // 10 MB
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -39,7 +39,7 @@ public class TamanoRequestFilter implements GlobalFilter {
                             tamano, exchange.getRequest().getRemoteAddress());
                     exchange.getResponse().setStatusCode(HttpStatus.PAYLOAD_TOO_LARGE);
                     exchange.getResponse().getHeaders().add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
-                    byte[] cuerpo = "{\"error\":\"Payload demasiado grande\",\"mensaje\":\"El tamaño máximo permitido es 2MB.\"}".getBytes(StandardCharsets.UTF_8);
+                    byte[] cuerpo = "{\"error\":\"Payload demasiado grande\",\"mensaje\":\"El tamaño máximo permitido es 10MB.\"}".getBytes(StandardCharsets.UTF_8);
                     var buffer = exchange.getResponse().bufferFactory().wrap(cuerpo);
                     return exchange.getResponse().writeWith(Mono.just(buffer));
                 }
